@@ -1,0 +1,88 @@
+trigger: none
+
+pool: abhi_agent
+
+variables:
+  WORKDIR: '$(System.DefaultWorkingDirectory)/dev'
+
+stages:
+  - stage: Initialize
+    jobs:
+      - job: Initialize
+        displayName: "Initialize/Validate Stage"
+        steps:
+        - task: TerraformTask@5
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            workingDirectory: '$(WORKDIR)'
+            backendServiceArm: 'new_cicd'
+            backendAzureRmOverrideSubscriptionID: '2fe6adb6-b639-4804-8d25-87b437c9cbe6'
+            backendAzureRmResourceGroupName: 'abhi-rg'
+            backendAzureRmStorageAccountName: 'abhistg11223'
+            backendAzureRmContainerName: 'tfstate'
+            backendAzureRmKey: 'prod.terraform.tfstate'
+
+        - task: TerraformTask@5
+          displayName: Terraform Validate
+          inputs:
+            provider: 'azurerm'
+            command: 'validate'
+            workingDirectory: '$(WORKDIR)'
+
+  - stage: plan
+    jobs:
+      - job: plan
+        displayName: "Plan Stage"
+        steps:
+        - task: TerraformTask@5
+          displayName: "Plan"
+          inputs:
+            provider: 'azurerm'
+            command: 'plan'
+            workingDirectory: '$(WORKDIR)'
+            environmentServiceNameAzureRM: 'new_cicd'
+
+  - stage: scanning
+    jobs:
+      - job: scanning
+        displayName: "Scanning"
+        steps:
+        - task: tfsec@1
+          inputs:
+            version: 'v1.26.0'
+            dir: '$(WORKDIR)'
+
+  # - stage: mannualvalidation
+  #   jobs:
+  #     - job: validation
+  #       displayName: "mannualvalidation"
+  #       steps:
+  #       - task: ManualValidation@1
+  #         inputs:
+  #           notifyUsers: 'abhimanyusingh917'
+
+  - stage: apply
+    jobs:
+      - job: aply
+        displayName: "Apply Stage"
+        steps:
+        - task: TerraformTask@5
+          displayName: "Apply"
+          inputs:
+            provider: 'azurerm'
+            command: 'apply'
+            workingDirectory: '$(WORKDIR)'
+            environmentServiceNameAzureRM: 'new_cicd'
+
+  - stage: delete
+    jobs:
+      - job: build
+        displayName: "Delete Stage"
+        steps:
+        - task: TerraformTask@5
+          inputs:
+            provider: 'azurerm'
+            command: 'destroy'
+            workingDirectory: '$(WORKDIR)'
+            environmentServiceNameAzureRM: 'new_cicd'
